@@ -29,16 +29,23 @@
         .fcsapi-chart-area {
             position: relative;
         }
+        .tradigy-overlay-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 1000;
+            pointer-events: none;
+        }
         .tradigy-vertical-zoom {
             position: absolute;
-            right: 8px;
-            bottom: 4px;
+            right: 2px;
+            bottom: 22px;
+            z-index: 1;
             z-index: 1000;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 3px;
-            padding: 4px;
+            gap: 2px;
+            padding: 2px;
             border-radius: 5px;
             background: rgba(20, 22, 30, 0.78);
             border: 1px solid rgba(120, 123, 134, 0.28);
@@ -55,15 +62,16 @@
             gap: 3px;
         }
         .tradigy-vertical-zoom button {
-            width: 32px;
-            height: 30px;
+            width: 24px;
+            height: 21px;
             padding: 0;
             border: 0;
             border-radius: 3px;
             background: transparent;
             color: #d1d4dc;
             cursor: pointer;
-            font: 700 17px/30px Arial, sans-serif;
+            font: 700 14px/21px Arial, sans-serif;
+            pointer-events: auto;
         }
         .tradigy-vertical-zoom button:hover {
             background: rgba(255,255,255,.10);
@@ -80,7 +88,8 @@
 <body>
         <div id="fcs_chartparent">
             <div id="fcs_chart"></div>
-            <div class="tradigy-vertical-zoom" id="tradigyVerticalZoom" aria-label="Vertical Zoom">
+            <div class="tradigy-overlay-layer" id="tradigyOverlayLayer" aria-label="Tradigy Chart Controls">
+                <div class="tradigy-vertical-zoom" id="tradigyVerticalZoom" aria-label="Vertical Zoom">
                 <div class="vz-row">
                     <button type="button" id="vzUp" title="Zoom In" aria-label="Vertical Zoom In">▲</button>
                     <button type="button" id="vzDown" title="Zoom Out" aria-label="Vertical Zoom Out">▼</button>
@@ -90,6 +99,7 @@
                     <button type="button" id="vzLock" title="Lock Vertical Scale" aria-label="Lock Vertical Scale">L</button>
                 </div>
             </div>
+        </div>
         </div>
 
     <!-- Load local FCS Chart source -->
@@ -310,17 +320,8 @@
 
             if (!controls || !up || !down || !auto || !lock) return;
 
-            // Keep the controls anchored to the actual FCS price-chart area.
-            const mountControls = () => {
-                const priceArea = document.querySelector('#fcs_chart .fcsapi-chart-area');
-                if (priceArea && controls.parentElement !== priceArea) {
-                    priceArea.appendChild(controls);
-                }
-            };
-            mountControls();
-            window.setTimeout(mountControls, 0);
-            window.setTimeout(mountControls, 250);
-
+            // Tradigy owns this overlay layer; keep it outside the FCS chart DOM.
+            // This makes future Paper Trading UI independent from the chart engine.
             const getEngine = () => chart && chart.engine;
             const getState = () => {
                 const engine = getEngine();
