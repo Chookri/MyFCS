@@ -23,10 +23,63 @@
     <!-- Load from GitHub CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fcsapi/chart-js/src/fcsapi-chart.css">
 
+
+    <style>
+        /* Tradigy V1 — Vertical Zoom controls */
+        .tradigy-vertical-zoom {
+            position: absolute;
+            right: 10px;
+            bottom: 8px;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            padding: 2px;
+            border-radius: 5px;
+            background: rgba(20, 22, 30, 0.78);
+            border: 1px solid rgba(120, 123, 134, 0.28);
+            backdrop-filter: blur(4px);
+            box-shadow: 0 2px 8px rgba(0,0,0,.18);
+            font-size: 12px;
+            line-height: 1;
+            user-select: none;
+        }
+        .tradigy-vertical-zoom button {
+            width: 23px;
+            height: 23px;
+            padding: 0;
+            border: 0;
+            border-radius: 3px;
+            background: transparent;
+            color: #d1d4dc;
+            cursor: pointer;
+            font: 600 13px/23px Arial, sans-serif;
+        }
+        .tradigy-vertical-zoom button:hover {
+            background: rgba(255,255,255,.10);
+        }
+        .tradigy-vertical-zoom button.active {
+            background: rgba(41,98,255,.78);
+            color: #fff;
+        }
+        .tradigy-vertical-zoom .vz-sep {
+            width: 1px;
+            height: 15px;
+            background: rgba(255,255,255,.18);
+            margin: 0 1px;
+        }
+    </style>
 </head>
 <body>
         <div id="fcs_chartparent">
             <div id="fcs_chart"></div>
+            <div class="tradigy-vertical-zoom" id="tradigyVerticalZoom" aria-label="Vertical Zoom">
+                <button type="button" id="vzUp" title="Zoom In" aria-label="Vertical Zoom In">▲</button>
+                <button type="button" id="vzDown" title="Zoom Out" aria-label="Vertical Zoom Out">▼</button>
+                <span class="vz-sep"></span>
+                <button type="button" id="vzAuto" title="Auto Scale" aria-label="Auto Scale">A</button>
+                <button type="button" id="vzLock" title="Lock Vertical Scale" aria-label="Lock Vertical Scale">L</button>
+            </div>
         </div>
 
     <!-- Load from GitHub CDN -->
@@ -233,6 +286,100 @@
 
         // Clear all lines
         // chart.clearHorizontalLines();
+
+
+        // ============================================================
+        // TRADIGY V1 — Vertical Zoom Control Layer
+        // ============================================================
+        (() => {
+            const controls = document.getElementById('tradigyVerticalZoom');
+            const up = document.getElementById('vzUp');
+            const down = document.getElementById('vzDown');
+            const auto = document.getElementById('vzAuto');
+            const lock = document.getElementById('vzLock');
+
+            if (!controls || !up || !down || !auto || !lock) return;
+
+            const getEngine = () => chart && chart.engine;
+            const getState = () => {
+                const engine = getEngine();
+                return engine && engine.data && engine.priceRange ? engine : null;
+            };
+
+            const syncState = () => {
+                const engine = getState();
+                if (!engine) return;
+                lock.classList.toggle('active', engine.autoScale === false);
+                auto.classList.toggle('active', engine.autoScale !== false);
+            };
+
+            const zoomVertical = (zoomIn) => {
+                const engine = getState();
+                if (!engine) return;
+
+                const data = Array.isArray(engine.data) ? engine.data : [];
+                if (!data.length) return;
+
+                const lows = data.map(c => Number(c.low)).filter(Number.isFinite);
+                const highs = data.map(c => Number(c.high)).filter(Number.isFinite);
+                if (!lows.length || !highs.length) return;
+
+                const dataMin = Math.min(...lows);
+                const dataMax = Math.max(...highs);
+                const fullRange = dataMax - dataMin;
+                if (!(fullRange > 0)) return;
+
+                const currentMin = Number(engine.priceRange.min);
+                const currentMax = Number(engine.priceRange.max);
+                if (!Number.isFinite(currentMin) || !Number.isFinite(currentMax) || currentMax <= currentMin) return;
+
+                // Match FCS handleWheel behavior: shrink/expand the current price range.
+                const factor = zoomIn ? 0.9 : 1.1;
+                const center = (currentMin + currentMax) / 2;
+                const nextRange = (currentMax - currentMin) * factor;
+
+                if (nextRange < fullRange * 0.01 || nextRange > fullRange * 5) return;
+
+                engine.priceRange.min = center - nextRange / 2;
+                engine.priceRange.max = center + nextRange / 2;
+                engine.autoScale = false;
+
+                if (typeof engine.render === 'function') engine.render();
+                syncState();
+            };
+
+            const setAutoScale = () => {
+                const engine = getState();
+                if (!engine) return;
+
+                engine.autoScale = true;
+                if (typeof engine.calculateVisibleRange === 'function') engine.calculateVisibleRange();
+                if (typeof engine.calculatePriceRange === 'function') engine.calculatePriceRange();
+                if (typeof engine.render === 'function') engine.render();
+                syncState();
+            };
+
+            const toggleLock = () => {
+                const engine = getState();
+                if (!engine) return;
+
+                engine.autoScale = engine.autoScale === false;
+                if (engine.autoScale && typeof engine.calculatePriceRange === 'function') {
+                    engine.calculatePriceRange();
+                }
+                if (typeof engine.render === 'function') engine.render();
+                syncState();
+            };
+
+            up.addEventListener('click', () => zoomVertical(true));
+            down.addEventListener('click', () => zoomVertical(false));
+            auto.addEventListener('click', setAutoScale);
+            lock.addEventListener('click', toggleLock);
+
+            const syncTimer = window.setInterval(syncState, 500);
+            window.addEventListener('beforeunload', () => window.clearInterval(syncTimer));
+            syncState();
+        })();
 
         console.log('Chart initialized:', chart);
 
