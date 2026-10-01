@@ -20,17 +20,39 @@
         }
     </style>
 
-    <!-- Load from GitHub CDN -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fcsapi/chart-js/src/fcsapi-chart.css">
+    <!-- Load local FCS Chart source -->
+    <link rel="stylesheet" href="../src/fcsapi-chart.css">
 
+
+    <style>
+        /* Tradigy brand: bottom-bar label, separate from the FCS watermark renderer. */
+        #tradigy-watermark {
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            transform: translateX(-50%);
+            z-index: 9999;
+            font: 500 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: rgba(255, 255, 255, 0.55);
+            text-shadow: none;
+            text-decoration: none;
+            white-space: nowrap;
+            pointer-events: none;
+            line-height: 1;
+        }
+    </style>
 </head>
 <body>
         <div id="fcs_chartparent">
+            <div id="tradigy-watermark" aria-label="Tradigy">Tradigy</div>
             <div id="fcs_chart"></div>
+            <div class="tradigy-overlay-layer" id="tradigyOverlayLayer" aria-label="Tradigy Chart Controls">
+            </div>
+        </div>
         </div>
 
-    <!-- Load from GitHub CDN -->
-    <script src="https://cdn.jsdelivr.net/gh/fcsapi/chart-js/src/fcsapi-chart.js"></script>
+    <!-- Load local FCS Chart source -->
+    <script src="../src/fcsapi-chart.js"></script>
 
     <script>
         // Mobile viewport height fix - for browsers without dvh support
@@ -233,6 +255,7 @@
 
         // Clear all lines
         // chart.clearHorizontalLines();
+
 
         console.log('Chart initialized:', chart);
 
