@@ -26,6 +26,9 @@
 
     <style>
         /* Tradigy V1 — Vertical Zoom controls */
+        .fcsapi-chart-area {
+            position: relative;
+        }
         .tradigy-vertical-zoom {
             position: absolute;
             right: 10px;
@@ -299,6 +302,17 @@
             const lock = document.getElementById('vzLock');
 
             if (!controls || !up || !down || !auto || !lock) return;
+
+            // Keep the controls anchored to the actual FCS price-chart area.
+            const mountControls = () => {
+                const priceArea = document.querySelector('#fcs_chart .fcsapi-chart-area');
+                if (priceArea && controls.parentElement !== priceArea) {
+                    priceArea.appendChild(controls);
+                }
+            };
+            mountControls();
+            window.setTimeout(mountControls, 0);
+            window.setTimeout(mountControls, 250);
 
             const getEngine = () => chart && chart.engine;
             const getState = () => {
