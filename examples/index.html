@@ -83,32 +83,28 @@
             display: none;
         }
 
-        /* Tradigy brand replaces the FCS free-chart watermark without modifying the FCS engine. */
-        .tradigy-brand-watermark {
+        /* Tradigy brand: bottom-bar label, separate from the FCS watermark renderer. */
+        #tradigy-watermark {
             position: absolute;
-            right: 18px;
-            bottom: 54px;
-            z-index: 1001;
-            min-width: 285px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            padding: 0 6px;
-            background: #0d0e14;
-            color: #8f939a;
-            font: 700 20px/30px Arial, sans-serif;
-            pointer-events: none;
-            user-select: none;
+            left: 50%;
+            bottom: 0;
+            transform: translateX(-50%);
+            z-index: 9999;
+            font: 500 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: rgba(255, 255, 255, 0.55);
+            text-shadow: none;
+            text-decoration: none;
             white-space: nowrap;
+            pointer-events: none;
+            line-height: 1;
         }
     </style>
 </head>
 <body>
         <div id="fcs_chartparent">
+            <div id="tradigy-watermark" aria-label="Tradigy">Tradigy</div>
             <div id="fcs_chart"></div>
             <div class="tradigy-overlay-layer" id="tradigyOverlayLayer" aria-label="Tradigy Chart Controls">
-                <div class="tradigy-brand-watermark" aria-label="Tradigy">Tradigy</div>
                 <div class="tradigy-vertical-zoom" id="tradigyVerticalZoom" aria-label="Vertical Zoom">
                 <div class="vz-row">
                     <button type="button" id="vzUp" title="Zoom In" aria-label="Vertical Zoom In">▲</button>
