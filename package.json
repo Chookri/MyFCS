@@ -11,7 +11,8 @@
     "src/chunks/"
   ],
   "scripts": {
-    "test": "echo \"No tests specified\" && exit 0"
+    "test": "echo \"No tests specified\" && exit 0",
+    "start": "node server.js"
   },
   "repository": {
     "type": "git",
