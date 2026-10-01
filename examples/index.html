@@ -21,7 +21,7 @@
     </style>
 
     <!-- Load from GitHub CDN -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fcsapi/chart-js/src/fcsapi-chart.css">
+    <link rel="stylesheet" href="../src/fcsapi-chart.css">
 
 
     <style>
@@ -47,16 +47,22 @@
             line-height: 1;
             user-select: none;
         }
+        .tradigy-vertical-zoom .vz-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+        }
         .tradigy-vertical-zoom button {
-            width: 23px;
-            height: 23px;
+            width: 32px;
+            height: 30px;
             padding: 0;
             border: 0;
             border-radius: 3px;
             background: transparent;
             color: #d1d4dc;
             cursor: pointer;
-            font: 600 13px/23px Arial, sans-serif;
+            font: 700 17px/30px Arial, sans-serif;
         }
         .tradigy-vertical-zoom button:hover {
             background: rgba(255,255,255,.10);
@@ -66,10 +72,7 @@
             color: #fff;
         }
         .tradigy-vertical-zoom .vz-sep {
-            width: 1px;
-            height: 15px;
-            background: rgba(255,255,255,.18);
-            margin: 0 1px;
+            display: none;
         }
     </style>
 </head>
@@ -77,16 +80,19 @@
         <div id="fcs_chartparent">
             <div id="fcs_chart"></div>
             <div class="tradigy-vertical-zoom" id="tradigyVerticalZoom" aria-label="Vertical Zoom">
-                <button type="button" id="vzUp" title="Zoom In" aria-label="Vertical Zoom In">▲</button>
-                <button type="button" id="vzDown" title="Zoom Out" aria-label="Vertical Zoom Out">▼</button>
-                <span class="vz-sep"></span>
-                <button type="button" id="vzAuto" title="Auto Scale" aria-label="Auto Scale">A</button>
-                <button type="button" id="vzLock" title="Lock Vertical Scale" aria-label="Lock Vertical Scale">L</button>
+                <div class="vz-row">
+                    <button type="button" id="vzUp" title="Zoom In" aria-label="Vertical Zoom In">▲</button>
+                    <button type="button" id="vzDown" title="Zoom Out" aria-label="Vertical Zoom Out">▼</button>
+                </div>
+                <div class="vz-row">
+                    <button type="button" id="vzAuto" title="Auto Scale" aria-label="Auto Scale">A</button>
+                    <button type="button" id="vzLock" title="Lock Vertical Scale" aria-label="Lock Vertical Scale">L</button>
+                </div>
             </div>
         </div>
 
     <!-- Load from GitHub CDN -->
-    <script src="https://cdn.jsdelivr.net/gh/fcsapi/chart-js/src/fcsapi-chart.js"></script>
+    <script src="../src/fcsapi-chart.js"></script>
 
     <script>
         // Mobile viewport height fix - for browsers without dvh support
