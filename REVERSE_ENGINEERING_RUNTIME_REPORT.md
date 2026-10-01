@@ -590,3 +590,326 @@ The next pass should trace these concrete runtime chains:
 **Tradigy adapter design:** NEXT PASS
 
 This report is intended to remain in the MyFCS source tree and be updated as runtime chains are confirmed.
+
+
+# 9. Runtime Trace Pass 2 — Concrete Execution Chains
+
+> This section is a deeper static reconstruction from the actual bundled runtime code. It maps concrete method calls and state mutations that were found in `src/fcsapi-chart.js` and the readable core chunks.
+
+## 9.1 Chart bootstrap / runtime object graph
+
+The main chart engine creates the Replay Manager directly during chart initialization:
+
+```
+chart engine constructor
+  └─ replayManager = new ReplayManager(engine)
+```
+
+The same initialization sequence creates/loads the major runtime services around it:
+
+```
+engine
+ ├─ indicatorManager
+ ├─ drawingManager
+ ├─ interactionManager
+ ├─ replayManager
+ ├─ UIManager (lazy-loaded)
+ ├─ InfoOverlay (lazy-loaded)
+ ├─ ProfilePanel
+ ├─ TimeRangeSelector
+ ├─ MultiChartManager
+ └─ SocketManager
+```
+
+This confirms that Replay, Indicators, Drawings and UI are not independent applications; they mutate shared chart-engine state.
+
+## 9.2 Timeframe selection → data load
+
+The readable `TimeRangeSelector` shows the concrete path:
+
+```
+selectRange(range)
+  → updateTimeframeDropdown(period)
+  → loadRangeData(period, length, ...)
+  → timeframeAggregator.calculateAggregation(period)
+  → choose source timeframe
+  → build API URL
+  → fetch(...)
+  → response.json()
+  → optional timeframeAggregator.processData(...)
+  → chart.setData(data, info)
+  → zoomToTimeRange() / zoomToShowAll()
+```
+
+The API request is assembled from:
+
+- `symbol`
+- `period`
+- authentication parameters
+- optional `from` / `to`
+- optional `length`
+- `is_chart=1`
+
+This is a strong integration boundary for Tradigy: the chart engine expects normalized candle data after the data-source/aggregation layer.
+
+## 9.3 Timeframe dropdown → engine.setPeriod()
+
+The UI path is:
+
+```
+UIManager.createTimeframeDropdown()
+  → customSelectChange
+  → engine.chartInstance.setPeriod(period)
+```
+
+Keyboard timeframe changes use:
+
+```
+ShortcutManager.setTimeframe(period)
+  → uiManager.updateTimeframeDropdown(period)
+  → chartInstance.setPeriod(period)
+```
+
+Therefore Tradigy should treat `setPeriod()` as the central timeframe transition point rather than making the UI directly reload candles.
+
+## 9.4 Replay runtime — confirmed state model
+
+The main bundle contains a dedicated Replay Manager class. Its reconstructed public methods are:
+
+- `start(startIndex)`
+- `pause()`
+- `stop()`
+- `setSpeed()`
+- `togglePlayPause()`
+- `getCurrentTime()`
+
+Obfuscated methods can be mapped from their behavior to:
+
+- set replay data/index
+- skip forward
+- skip backward
+- jump/set index
+- get progress
+- update replay UI
+- toggle auto-fit
+
+### Replay start
+
+The concrete state transition is approximately:
+
+```
+ReplayManager.start(startIndex)
+  → originalData = engine.data
+  → originalScrollOffset = engine.scrollOffset
+  → save original price range / autoscale state
+  → replayStartIndex = startIndex
+  → replayEndIndex = replayData.length - 1
+  → currentIndex = replayStartIndex
+  → isActive = true
+  → engine.data = originalData.slice(0, currentIndex + 1)
+  → recalculate indicators
+  → calculateVisibleRange()
+  → render()
+  → updateReplayUI()
+```
+
+### Replay play loop
+
+The runtime uses `requestAnimationFrame` and a speed-controlled frame interval.
+
+On each replay step:
+
+```
+currentIndex++
+engine.data = originalData.slice(0, currentIndex + 1)
+engine.scrollOffset += 1
+indicatorManager.recalculateAll()
+optional auto-fit price range
+calculateVisibleRange()
+render()
+updateReplayUI()
+```
+
+This is the critical Blind Backtest property:
+
+**future candles remain stored in `originalData`, but are not exposed through `engine.data` while replay is active.**
+
+That means indicator calculation can be made candle-causal if the calculation itself only reads `engine.data`.
+
+### Replay manual stepping
+
+Forward:
+
+```
+skipForward(n)
+  → current replay index advances
+  → engine.data = replayData.slice(0, index + 1)
+  → indicatorManager.recalculateAll()
+  → calculateVisibleRange()
+  → render()
+```
+
+Backward follows the same pattern and recalculates indicators from the shortened visible dataset.
+
+### Replay stop
+
+```
+stop()
+  → cancel animation
+  → isActive = false
+  → engine.data = originalData
+  → restore scrollOffset
+  → restore price range / autoscale
+  → recalculate indicators
+  → render()
+  → reconnect live socket when applicable
+```
+
+## 9.5 Replay selection interaction
+
+The interaction manager has an explicit `replaySelectionMode`.
+
+The mouse interaction path is approximately:
+
+```
+Replay selection mode
+  → mouse down records selection point/index
+  → mouse up resolves selected candle
+  → replay manager receives selected index
+  → ReplayManager starts from that index
+```
+
+This is separate from ordinary drawing/cursor interaction.
+
+## 9.6 Indicator execution boundary
+
+The Indicator Manager contains the concrete lifecycle:
+
+```
+add(indicatorConfig)
+  → loadIndicatorClass(type)
+  → new Indicator(id, config, engine)
+  → indicator.init()
+  → optional panel creation
+  → render
+```
+
+Its recalculation method is explicitly:
+
+```
+recalculateAll()
+  → indicators.forEach(indicator => indicator.calculate())
+```
+
+Its rendering method then calls visible main-chart indicators and panel rendering.
+
+This gives Tradigy a clean execution boundary:
+
+```
+engine.data
+   ↓
+indicator.calculate()
+   ↓
+indicator.data / plots / signal state
+   ↓
+indicator.render()
+   ↓
+chart renderer / panels / annotations
+```
+
+## 9.7 Data update boundary
+
+The engine also recalculates indicators after normal data updates:
+
+```
+appendData(...)
+  → parseData(...)
+  → merge/update candles
+  → calculateTimeLabelIndices()
+  → calculateVisibleRange()
+  → calculatePriceRange()
+  → indicatorManager.recalculateAll()
+  → render()
+```
+
+A separate update path for historical/more data similarly ends in indicator recalculation and render.
+
+Therefore a Tradigy live-alert architecture can hook at the candle-update boundary before/around indicator recalculation, provided alert evaluation is kept causal.
+
+## 9.8 Important architecture conclusion for Tradigy
+
+The most useful reusable abstraction discovered is not the visual renderer. It is the **state pipeline**:
+
+```
+DATA SOURCE
+   ↓
+NORMALIZED CANDLES
+   ↓
+ENGINE.DATA
+   ↓
+INDICATOR CALCULATION
+   ↓
+SIGNAL / DRAWING STATE
+   ↓
+RENDER
+   ↓
+ALERT / JOURNAL HOOK
+```
+
+For Blind Backtest:
+
+```
+ORIGINAL DATA
+   ↓
+REPLAY INDEX
+   ↓
+ENGINE.DATA = ORIGINAL.slice(0, index + 1)
+   ↓
+RECALCULATE INDICATORS
+   ↓
+EVALUATE ALERTS
+   ↓
+RENDER / JOURNAL SNAPSHOT
+```
+
+This is the runtime boundary Tradigy should reproduce.
+
+## 9.9 Current reverse-engineering confidence
+
+### High confidence — directly observed in source
+
+- TimeRangeSelector API/data-load path.
+- UI timeframe → `chartInstance.setPeriod()`.
+- Replay Manager existence and constructor placement.
+- Replay `originalData` preservation.
+- Replay `engine.data = originalData.slice(...)`.
+- Replay indicator recalculation.
+- Replay render/visible-range update.
+- Indicator Manager `recalculateAll()`.
+- Indicator loading and `init()` path.
+- Normal append-data → indicator recalculation → render path.
+
+### Medium confidence — reconstructed from obfuscated property mappings
+
+- Exact original names of several Replay Manager private methods.
+- Exact method name used by the interaction manager to submit the selected replay index.
+- Some private engine property names inside the main bundle.
+
+### Not yet runtime-observed
+
+- A live Chrome DevTools call-stack capture.
+- Exact network timing between API response and chart render.
+- Exact lazy chunk-load timing for every indicator.
+- Full alert/event execution path because MyFCS does not appear to expose the complete Tradigy-style alert engine as a separate readable subsystem.
+
+## 9.10 Next target
+
+The next reverse-engineering pass should focus on:
+
+1. exact replay-selection method mapping;
+2. `setData()` internals;
+3. `setPeriod()` data-fetch transition;
+4. indicator lazy-loading/chunk registration;
+5. drawing manager → `drawings.js` execution boundary;
+6. alert/event hooks;
+7. a Tradigy adapter interface that can sit around these boundaries without modifying the FCS chart renderer.
