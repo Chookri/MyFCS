@@ -82,12 +82,33 @@
         .tradigy-vertical-zoom .vz-sep {
             display: none;
         }
+
+        /* Tradigy brand replaces the FCS free-chart watermark without modifying the FCS engine. */
+        .tradigy-brand-watermark {
+            position: absolute;
+            right: 18px;
+            bottom: 54px;
+            z-index: 1001;
+            min-width: 285px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 6px;
+            background: #0d0e14;
+            color: #8f939a;
+            font: 700 20px/30px Arial, sans-serif;
+            pointer-events: none;
+            user-select: none;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
         <div id="fcs_chartparent">
             <div id="fcs_chart"></div>
             <div class="tradigy-overlay-layer" id="tradigyOverlayLayer" aria-label="Tradigy Chart Controls">
+                <div class="tradigy-brand-watermark" aria-label="Tradigy">Tradigy</div>
                 <div class="tradigy-vertical-zoom" id="tradigyVerticalZoom" aria-label="Vertical Zoom">
                 <div class="vz-row">
                     <button type="button" id="vzUp" title="Zoom In" aria-label="Vertical Zoom In">▲</button>
